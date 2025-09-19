@@ -520,7 +520,7 @@ def artifact_editor_tab(df, char_groups):
     
     # Выбор артефакта для редактирования
     artifact_options = [
-        f"{row['artifact_id']} | {row['name']} | {row['type']} | {row['level']}"
+        f"{row['name']} | {row['type']} | {row['level']}"
         for _, row in filtered.iterrows()
     ]
     selected_option = st.selectbox("🎮 Выберите артефакт для редактирования", artifact_options, key="artifact_selector")
