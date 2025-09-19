@@ -520,15 +520,19 @@ def artifact_editor_tab(df, char_groups):
     
     # Выбор артефакта для редактирования
     artifact_options = [
-        f"{row['name']} | {row['type']} | {row['level']}"
+        f"{row['artifact_id']} | {row['name']} | {row['type']} | {row['level']}"
         for _, row in filtered.iterrows()
     ]
-    selected_option = st.selectbox("🎮 Выберите артефакт для редактирования", artifact_options, key="artifact_selector")
+    selected_option = st.selectbox(
+        "🎮 Выберите артефакт для редактирования",
+        artifact_options,
+        key="artifact_selector"
+    )
 
     if selected_option:
-        # ИСПРАВЛЕНИЕ: Получаем индекс в отфильтрованном DataFrame
-        filtered_idx = artifact_options.index(selected_option)
-        artifact_row = filtered.iloc[filtered_idx]
+        artifact_id = int(selected_option.split(" | ")[0])
+        artifact_row = df[df['artifact_id'] == artifact_id].iloc[0]
+
         
         # ВАЖНО: Используем artifact_id для поиска в исходном DataFrame
         artifact_id = artifact_row['artifact_id']
