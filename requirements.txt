@@ -3,3 +3,4 @@ pandas
 plotly
 pandas
 numpy
+chardet
