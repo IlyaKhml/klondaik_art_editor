@@ -517,24 +517,19 @@ def artifact_editor_tab(df, char_groups):
     if len(filtered) == 0:
         st.warning("Артефакты не найдены")
         return
-    # Создаём словарь {artifact_id: "name | type | level"}
-    artifact_options = {
-        row["artifact_id"]: f"{row['name']} | {row['type']} | {row['level']}"
+    
+    # Выбор артефакта для редактирования
+    artifact_options = [
+        f"{row['artifact_id']} | {row['name']} | {row['type']} | {row['level']}"
         for _, row in filtered.iterrows()
-    }
+    ]
+    selected_option = st.selectbox("🎮 Выберите артефакт для редактирования", artifact_options, key="artifact_selector")
 
-    # Отображаем только значения (но ключи будем хранить)
-    selected_label = st.selectbox(
-        "🎮 Выберите артефакт для редактирования",
-        options=list(artifact_options.values()),
-        key="artifact_selector"
-    )
-
-    if selected_label:
-        # Получаем artifact_id по выбранной строке
-        artifact_id = next(k for k, v in artifact_options.items() if v == selected_label)
-        artifact_row = df[df["artifact_id"] == artifact_id].iloc[0]
-
+    if selected_option:
+        # ИСПРАВЛЕНИЕ: Получаем индекс в отфильтрованном DataFrame
+        filtered_idx = artifact_options.index(selected_option)
+        artifact_row = filtered.iloc[filtered_idx]
+        
         # ВАЖНО: Используем artifact_id для поиска в исходном DataFrame
         artifact_id = artifact_row['artifact_id']
         # Находим реальный индекс в исходном DataFrame по artifact_id
