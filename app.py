@@ -523,7 +523,7 @@ def artifact_editor_tab(df, char_groups):
         f"{row['name']} | {row['type']} | {row['level']}"
         for _, row in filtered.iterrows()
     ]
-    selected_option = st.selectbox("🎮 Выберите артефакт для редактирования", artifact_options)
+    selected_option = st.selectbox("🎮 Выберите артефакт для редактирования", artifact_options, key="artifact_selector")
 
     if selected_option:
         # ИСПРАВЛЕНИЕ: Получаем индекс в отфильтрованном DataFrame
