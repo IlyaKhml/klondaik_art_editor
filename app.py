@@ -42,9 +42,13 @@ st.markdown("""
 @st.cache_data
 def load_data():
     df = pd.read_csv("df.csv")
-    df = df.drop(["extra_text_type_eng", "extra_text_level_eng","extra_text_term_eng", 
-             "extra_text_type", "extra_text_level", "extra_text_term", 
-             "description_new_2", "description_new_eng_2"], axis=1)
+    del_columns = ["extra_text_type_eng", "extra_text_level_eng","extra_text_term_eng", 
+                "extra_text_type", "extra_text_level", "extra_text_term", 
+                "description_new_2", "description_new_eng_2"]
+    for i in del_columns:
+        if i in df.columns:
+            df = df.drop(i, axis=1)
+
     return df
 
 @st.cache_data
