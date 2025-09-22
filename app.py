@@ -195,8 +195,8 @@ def transform_level_column(df: pd.DataFrame) -> pd.DataFrame:
 
     return df, level_order
 
-def display_artifact_score_comparison(artifact_row, df, weights, abs_weights):
-    scored_df = compute_artifact_scores(df, weights, abs_weights)
+def display_artifact_score_comparison(artifact_row, df):
+    scored_df = compute_artifact_scores(df, st.session_state.STATS_WEIGHT, st.session_state.STAT_ABS_WEIGHT)
 
     artifact_id = artifact_row["artifact_id"]
     art_level = artifact_row["level"]
@@ -244,8 +244,8 @@ def display_artifact_score_comparison(artifact_row, df, weights, abs_weights):
         y="total_score",
         color="level",
         size="positive_score",
-        hover_data=["artifact_id", "positive_score", "negative_score"],
-        category_orders={"level": level_order},  # теперь порядок фиксируется функцией
+        hover_data=["artifact_id", "name", "positive_score", "negative_score"],
+        category_orders={"level": level_order},
         title=f"📈 Score по уровням для типа {art_type}",
         height=500
     )
@@ -284,81 +284,6 @@ def display_artifact_score_comparison(artifact_row, df, weights, abs_weights):
             st.plotly_chart(fig_level, use_container_width=True)
         with col2:
             st.plotly_chart(fig_type, use_container_width=True)
-
-def display_type_stats_distribution(artifact_row, df, char_groups):
-    """Показ распределения характеристик по артефактам того же типа."""
-
-    art_type = artifact_row["type"]
-    type_df = df[df["type"] == art_type].copy()
-
-    # Все характеристики из групп
-    all_stats = [stat for group in char_groups.values() for stat in group]
-    
-    stats_data = []
-    for stat in all_stats:
-        if stat not in type_df.columns:
-            continue
-
-        # значения по типу
-        values = type_df[stat].dropna()
-        if (values == 0).all():
-            continue  # исключаем полностью пустые статы для типа
-
-        sum_pos = values[values > 0].sum()
-        sum_neg = values[values < 0].sum()
-        current_val = artifact_row.get(stat, 0)
-
-        stats_data.append({
-            "stat": stat,
-            "sum_pos": sum_pos,
-            "sum_neg": sum_neg,
-            "current_val": current_val
-        })
-
-    if not stats_data:
-        st.info("Для данного типа артефактов нет активных характеристик.")
-        return
-
-    # === Строим график ===
-    fig = go.Figure()
-
-    # положительные суммы
-    fig.add_trace(go.Bar(
-        x=[d["stat"] for d in stats_data],
-        y=[d["sum_pos"] for d in stats_data],
-        name="Сумма +",
-        marker_color="green"
-    ))
-
-    # отрицательные суммы
-    fig.add_trace(go.Bar(
-        x=[d["stat"] for d in stats_data],
-        y=[d["sum_neg"] for d in stats_data],
-        name="Сумма -",
-        marker_color="red"
-    ))
-
-    # значения текущего артефакта
-    fig.add_trace(go.Scatter(
-        x=[d["stat"] for d in stats_data],
-        y=[d["current_val"] for d in stats_data],
-        mode="markers+text",
-        text=[f"{d['current_val']:.2f}" for d in stats_data],
-        textposition="top center",
-        marker=dict(color="black", size=12, symbol="star"),
-        name="Текущий артефакт"
-    ))
-
-    fig.update_layout(
-        barmode="relative",
-        title=f"📊 Распределение характеристик по типу ({art_type})",
-        xaxis_title="Характеристика",
-        yaxis_title="Сумма значений",
-        height=600
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
 
 def display_artifact_card(artifact_row, char_groups, df):
     """Отображение карточки артефакта с группировкой характеристик + ранги"""
@@ -440,8 +365,8 @@ def display_artifact_card(artifact_row, char_groups, df):
 
     st.markdown("#### 🧮 Вклад характеристик в итоговый score")
     display_score_contribution_chart(artifact_row, st.session_state.STATS_WEIGHT, st.session_state.STAT_ABS_WEIGHT)
-    display_artifact_score_comparison(artifact_row, df, st.session_state.STATS_WEIGHT, st.session_state.STAT_ABS_WEIGHT)
-    
+    display_artifact_score_comparison(artifact_row, df)
+
     # Характеристики
     st.markdown("#### 📊 Характеристики:")
 
@@ -501,27 +426,80 @@ def artifact_editor_tab(df, char_groups):
     # Фильтры
     col1, col2, col3 = st.columns(3)
     with col1:
-        selected_type = st.selectbox("🎯 Тип артефакта", options=[None] + sorted(df['type'].dropna().unique().tolist()), key="editor_type")
-        st.session_state.selected_type = selected_type
+        types = sorted(df['type'].dropna().unique().tolist())
+        selected_types = st.multiselect(
+            "🎯 Типы артефактов", 
+            options=types, 
+            key="editor_type",
+            help="Выберите один или несколько типов артефактов."
+        )
+        st.session_state.selected_types = selected_types
     with col2:
-        selected_level = st.selectbox("📊 Уровень", options=[None] + sorted(df['level'].dropna().unique().tolist()), key="editor_level")
-        st.session_state.selected_level = selected_level
+        levels = sorted(df['level'].dropna().unique().tolist())
+        selected_levels = st.multiselect(
+            "📊 Уровни", 
+            options=levels, 
+            key="editor_level",
+            help="Выберите один или несколько уровней артефактов."
+        )
+        st.session_state.selected_levels = selected_levels
     with col3:
-        search_name = st.text_input("🔍 Поиск по названию", key="editor_search")
+        # Новый селектор для выбора конкретных артефактов
+        all_artifacts = [f"{row['name']} | {row['type']} | {row['level']} (ID: {row['artifact_id']})" for _, row in df.iterrows()]
+        selected_artifacts = st.multiselect(
+            "🎮 Конкретные артефакты", 
+            options=all_artifacts,
+            key="specific_artifacts_selector",
+            help="Выберите конкретные артефакты для фильтрации (необязательно). Имеет наивысший приоритет перед другими фильтрами артефактов."
+        )
     
     # Применяем фильтры
     filtered = df.copy()
-    if selected_type:
-        filtered = filtered[filtered["type"] == selected_type]
-    if selected_level:
-        filtered = filtered[filtered["level"] == selected_level]
-    if search_name:
-        filtered = filtered[filtered["name"].str.contains(search_name, case=False, na=False)]
+
+    # Фильтр по конкретным артефактам (приоритетный)
+    if selected_artifacts:
+        # Извлекаем artifact_id из выбранных элементов
+        selected_ids = []
+        for artifact_str in selected_artifacts:
+            # Извлекаем ID из строки вида "Name | Type | Level (ID: af_itcher)"
+            try:
+                artifact_id = artifact_str.split("(ID: ")[1].rstrip(")")
+                selected_ids.append(artifact_id)
+            except (IndexError, ValueError) as e:
+                st.error(f"Ошибка извлечения ID из строки: {artifact_str}")
+                continue
+        
+        if selected_ids:
+            filtered = filtered[filtered["artifact_id"].isin(selected_ids)]
+        else:
+            st.warning("Не удалось извлечь ID из выбранных артефактов")
+            return
+    else:
+        # Применяем остальные фильтры только если не выбраны конкретные артефакты
+        if selected_types:
+            filtered = filtered[filtered["type"].isin(selected_types)]
+        if selected_levels:
+            filtered = filtered[filtered["level"].isin(selected_levels)]
     
     if len(filtered) == 0:
         st.warning("Артефакты не найдены")
         return
     
+    # Информация о фильтрации
+    if selected_artifacts:
+        st.info(f"📋 Показано {len(filtered)} из {len(df)} артефактов")
+    else:
+        st.info(f"📋 Показано {len(filtered)} из {len(df)} артефактов")
+    
+    # Сохраняем данные в st.session_state
+    # if selected_artifacts or selected_types or selected_levels:
+    #     st.session_state.df_data_filtered = filtered.copy()
+    # else:
+    #     st.session_state.df_data_filtered = None
+    # st.session_state.selected_artifacts = True if selected_artifacts else False
+    # st.session_state.selected_levels = True if selected_levels else False
+    # st.session_state.selected_types = True if selected_types else False
+
     # Выбор артефакта для редактирования
     artifact_options = [
         f"{row['name']} | {row['type']} | {row['level']}"
@@ -530,11 +508,11 @@ def artifact_editor_tab(df, char_groups):
     selected_option = st.selectbox("🎮 Выберите артефакт для редактирования", artifact_options, key="artifact_selector")
 
     if selected_option:
-        # ИСПРАВЛЕНИЕ: Получаем индекс в отфильтрованном DataFrame
+        # Получаем индекс в отфильтрованном DataFrame
         filtered_idx = artifact_options.index(selected_option)
         artifact_row = filtered.iloc[filtered_idx]
         
-        # ВАЖНО: Используем artifact_id для поиска в исходном DataFrame
+        # Используем artifact_id для поиска в исходном DataFrame
         artifact_id = artifact_row['artifact_id']
         # Находим реальный индекс в исходном DataFrame по artifact_id
         original_idx = df[df['artifact_id'] == artifact_id].index[0]
@@ -547,7 +525,7 @@ def artifact_editor_tab(df, char_groups):
         # Редактирование характеристик
         st.markdown("### ✏️ Редактирование характеристик")
 
-        # ИСПРАВЛЕНИЕ: Используем artifact_id в ключе формы для уникальности
+        # Используем artifact_id в ключе формы для уникальности
         form_key = f"artifact_edit_form_{artifact_id}"
         
         with st.form(form_key):
@@ -563,7 +541,6 @@ def artifact_editor_tab(df, char_groups):
                             with cols[col_idx]:
                                 current_val = artifact_row[col] if pd.notna(artifact_row[col]) else None
                                 char_display = col.replace("_main", "").replace("_", " ").title()
-                                # ИСПРАВЛЕНИЕ: Используем artifact_id в ключе
                                 input_key = f"form_{artifact_id}_{col}_{group_key}"
 
                                 new_val = st.number_input(
@@ -579,7 +556,7 @@ def artifact_editor_tab(df, char_groups):
                                 else:
                                     edited_values[col] = new_val
 
-            # Мета-поля
+            # Мета-поля (остаются те же)
             meta_fields = {
                 "name": "Название (RU)",
                 "name_eng": "Название (EN)",
@@ -594,12 +571,12 @@ def artifact_editor_tab(df, char_groups):
                 edited_values["name"] = st.text_input(
                     meta_fields["name"],
                     value=artifact_row.get("name", ""),
-                    key=f"meta_name_{artifact_id}"  # ИСПРАВЛЕНИЕ
+                    key=f"meta_name_{artifact_id}"
                 )
                 edited_values["name_eng"] = st.text_input(
                     meta_fields["name_eng"],
                     value=artifact_row.get("name_eng", ""),
-                    key=f"meta_name_eng_{artifact_id}"  # ИСПРАВЛЕНИЕ
+                    key=f"meta_name_eng_{artifact_id}"
                 )
 
                 current_val = artifact_row.get("cost_main", None)
@@ -607,7 +584,7 @@ def artifact_editor_tab(df, char_groups):
                     meta_fields["cost_main"],
                     value=float(current_val) if current_val is not None else 0.0,
                     format="%.3f",
-                    key=f"meta_cost_main_{artifact_id}",  # ИСПРАВЛЕНИЕ
+                    key=f"meta_cost_main_{artifact_id}",
                     step=1.0
                 )
 
@@ -618,31 +595,31 @@ def artifact_editor_tab(df, char_groups):
                     meta_fields["type"],
                     options=type_options,
                     index=type_options.index(artifact_row["type"]) if artifact_row["type"] in type_options else 0,
-                    key=f"meta_type_{artifact_id}"  # ИСПРАВЛЕНИЕ
+                    key=f"meta_type_{artifact_id}"
                 )
                 edited_values["level"] = st.selectbox(
                     meta_fields["level"],
                     options=level_options,
                     index=level_options.index(artifact_row["level"]) if artifact_row["level"] in level_options else 0,
-                    key=f"meta_level_{artifact_id}"  # ИСПРАВЛЕНИЕ
+                    key=f"meta_level_{artifact_id}"
                 )
 
                 edited_values["main_description"] = st.text_area(
                     meta_fields["main_description"],
                     value=str(artifact_row.get("main_description", "")),
                     height=150,
-                    key=f"meta_desc_ru_{artifact_id}"  # ИСПРАВЛЕНИЕ
+                    key=f"meta_desc_ru_{artifact_id}"
                 )
                 edited_values["main_description_eng"] = st.text_area(
                     meta_fields["main_description_eng"],
                     value=str(artifact_row.get("main_description_eng", "")),
                     height=150,
-                    key=f"meta_desc_en_{artifact_id}"  # ИСПРАВЛЕНИЕ
+                    key=f"meta_desc_en_{artifact_id}"
                 )
 
             submitted = st.form_submit_button("💾 Сохранить изменения")
             if submitted:
-                # ИСПРАВЛЕНИЕ: Используем реальный индекс в исходном DataFrame
+                # Используем реальный индекс в исходном DataFrame
                 for col, val in edited_values.items():
                     st.session_state.df_data.loc[original_idx, col] = val
                 st.success(f"✅ Артефакт '{selected_art}' обновлен!")
@@ -680,7 +657,7 @@ def artifact_editor_tab(df, char_groups):
         save_table = st.form_submit_button("💾 Сохранить изменения (таблица)")
 
     if save_table:
-        # ИСПРАВЛЕНИЕ: Убедимся, что у нас есть artifact_id для корректного обновления
+        # Убедимся, что у нас есть artifact_id для корректного обновления
         if "artifact_id" not in edited_df.columns:
             st.error("Ошибка: отсутствует колонка artifact_id")
             return

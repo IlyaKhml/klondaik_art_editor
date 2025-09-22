@@ -34,7 +34,7 @@ def render_char_heatmap_by_type(
         # Уникальный ключ на основе имени группы
         group_key = md5(group_name.encode()).hexdigest()[:8]
 
-        expanded = False if (st.session_state.selected_level or st.session_state.selected_type) else True
+        expanded = False # if (st.session_state.selected_levels or st.session_state.selected_types) else True
 
         with st.expander(f"▶ {group_name}", expanded=expanded):
             if agg_mode == "sum":
