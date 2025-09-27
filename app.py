@@ -11,6 +11,7 @@ import json
 import time
 
 from graph_utils import render_all_charts
+from xml_translate import get_st_items_artefacts, get_ui_st_encyclopedia_artifacts
 
 from constants import (
     IMMUNITY_COLS, CAP_COLS, RESTORE_COLS, UTILITY_COLS,
@@ -1794,7 +1795,7 @@ def export_tab(df):
     """Вкладка экспорта и импорта данных"""
     st.header("💾 Экспорт / Импорт данных")
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([2,1])
 
     # ------------------- ЭКСПОРТ -------------------
     with col1:
@@ -1830,7 +1831,98 @@ def export_tab(df):
             file_name=f"artifacts_balanced_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv"
         )
+        
+        st.markdown("---")
+        st.subheader("📄 Файлы локализации")
 
+        # Убедимся, что состояние инициализировано
+        if "generated_files" not in st.session_state:
+            st.session_state.generated_files = {
+                "st_items_rus": {"buffer": None, "filename": None},
+                "ui_st_encyclopedia_rus": {"buffer": None, "filename": None},
+                "st_items_eng": {"buffer": None, "filename": None},
+                "ui_st_encyclopedia_eng": {"buffer": None, "filename": None},
+            }
+
+        # Два столбца: rus и eng
+        loc_col_rus, loc_col_eng = st.columns(2)
+
+        # Русские файлы
+        with loc_col_rus:
+            st.markdown("**Русская локализация**")
+
+            # st_items_artefacts (rus)
+            if st.button("📄 Сгенерировать st_items_artefacts.xml (rus)", help="XML файл по пути: gamedata\\configs\\text\\rus\\st_items_artefacts.xml. Отвечает за описания артефактов."):
+                with st.spinner("⏳ Генерация файла st_items_artefacts.xml (rus)..."):
+                    buffer, filename = get_st_items_artefacts(st.session_state.df_data, "rus")
+                    st.session_state.generated_files["st_items_rus"] = {"buffer": buffer, "filename": filename}
+                st.success("✅ Готово!")
+
+            # Всегда показываем кнопку скачивания (но disabled, если не сгенерировано)
+            st.download_button(
+                label="💾 Скачать st_items_artefacts.xml (rus)",
+                data=st.session_state.generated_files["st_items_rus"]["buffer"] or b"",
+                file_name=st.session_state.generated_files["st_items_rus"]["filename"] or "st_items_artefacts_rus.xml",
+                mime="text/xml",
+                disabled=st.session_state.generated_files["st_items_rus"]["buffer"] is None,
+                help="XML файл по пути: gamedata\\configs\\text\\rus\\st_items_artefacts.xml. Отвечает за описания артефактов."
+            )
+
+            # ui_st_encyclopedia_artifacts (rus)
+            if st.button("📘 Сгенерировать ui_st_encyclopedia_artifacts.xml (rus)", help="XML файл по пути: gamedata\\configs\\text\\rus\\ui_st_encyclopedia_artifacts.xml. Отвечает за описания артефактов в энциклопедии (PDA)."):
+                with st.spinner("⏳ Генерация файла ui_st_encyclopedia_artifacts.xml (rus)..."):
+                    buffer, filename = get_ui_st_encyclopedia_artifacts(st.session_state.df_data, "rus")
+                    st.session_state.generated_files["ui_st_encyclopedia_rus"] = {"buffer": buffer, "filename": filename}
+                st.success("✅ Готово!")
+
+            st.download_button(
+                label="💾 Скачать ui_st_encyclopedia_artifacts.xml (rus)",
+                data=st.session_state.generated_files["ui_st_encyclopedia_rus"]["buffer"] or b"",
+                file_name=st.session_state.generated_files["ui_st_encyclopedia_rus"]["filename"] or "ui_st_encyclopedia_artifacts_rus.xml",
+                mime="text/xml",
+                disabled=st.session_state.generated_files["ui_st_encyclopedia_rus"]["buffer"] is None,
+                help="XML файл по пути: gamedata\\configs\\text\\rus\\ui_st_encyclopedia_artifacts.xml. Отвечает за описания артефактов в энциклопедии (PDA)."
+            )
+
+        # Английские файлы
+        with loc_col_eng:
+            st.markdown("**Английская локализация**")
+
+            # st_items_artefacts (eng)
+            help_text_items_artefacts_eng = "XML файл по пути: gamedata\\configs\\text\\eng\\st_items_artefacts.xml. Отвечает за описания артефактов."
+            if st.button("📄 Сгенерировать st_items_artefacts.xml (eng)", help=help_text_items_artefacts_eng):
+                with st.spinner("⏳ Генерация файла st_items_artefacts.xml (eng)..."):
+                    buffer, filename = get_st_items_artefacts(st.session_state.df_data, "eng")
+                    st.session_state.generated_files["st_items_eng"] = {"buffer": buffer, "filename": filename}
+                st.success("✅ Готово!")
+
+            st.download_button(
+                label="💾 Скачать st_items_artefacts.xml (eng)",
+                data=st.session_state.generated_files["st_items_eng"]["buffer"] or b"",
+                file_name=st.session_state.generated_files["st_items_eng"]["filename"] or "st_items_artefacts_eng.xml",
+                mime="text/xml",
+                disabled=st.session_state.generated_files["st_items_eng"]["buffer"] is None,
+                help=help_text_items_artefacts_eng
+            )
+
+            # ui_st_encyclopedia_artifacts (eng)
+            help_text_ui_st_encyclopedia_eng = "XML файл по пути: gamedata\\configs\\text\\eng\\ui_st_encyclopedia_artifacts.xml. Отвечает за описания артефактов в энциклопедии (PDA). "
+            if st.button("📘 Сгенерировать ui_st_encyclopedia_artifacts.xml (eng)", help=help_text_ui_st_encyclopedia_eng):
+                with st.spinner("⏳ Генерация файла ui_st_encyclopedia_artifacts.xml (eng)..."):
+                    buffer, filename = get_ui_st_encyclopedia_artifacts(st.session_state.df_data, "eng")
+                    st.session_state.generated_files["ui_st_encyclopedia_eng"] = {"buffer": buffer, "filename": filename}
+                st.success("✅ Готово!")
+
+            st.download_button(
+                label="💾 Скачать ui_st_encyclopedia_artifacts.xml (eng)",
+                data=st.session_state.generated_files["ui_st_encyclopedia_eng"]["buffer"] or b"",
+                file_name=st.session_state.generated_files["ui_st_encyclopedia_eng"]["filename"] or "ui_st_encyclopedia_artifacts_eng.xml",
+                mime="text/xml",
+                disabled=st.session_state.generated_files["ui_st_encyclopedia_eng"]["buffer"] is None,
+                help=help_text_ui_st_encyclopedia_eng
+            )
+
+        st.markdown("---")
         st.subheader("📊 Экспорт статистики")
         if st.button("📊 Сгенерировать статистику"):
             stats_data = []
@@ -1887,7 +1979,7 @@ def export_tab(df):
     with col2:
         st.subheader("📋 Импорт CSV")
 
-        uploaded_csv = st.file_uploader("Загрузите CSV файл", type="csv")
+        uploaded_csv = st.file_uploader("Загрузите CSV файл", type="csv", key="import_csv_artifacts")
         if uploaded_csv is not None:
             try:
                 new_df = pd.read_csv(uploaded_csv)
